@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 
-function isDevServerRunning(): boolean {
+function isDevServerRunning() {
   try {
     if (process.platform === "win32") {
       const output = execSync(
@@ -16,6 +16,10 @@ function isDevServerRunning(): boolean {
   } catch {
     return false;
   }
+}
+
+if (process.env.VERCEL || process.env.CI) {
+  process.exit(0);
 }
 
 if (isDevServerRunning()) {
