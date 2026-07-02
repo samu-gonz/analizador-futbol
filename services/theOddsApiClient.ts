@@ -1,5 +1,6 @@
 import {
-  BET365_BOOKMAKER_KEY,
+  ODDS_API_REGIONS,
+  PREFERRED_BOOKMAKER_KEYS,
   SOCCER_SPORT_KEYS,
   THE_ODDS_API_BASE_URL,
   WORLD_CUP_SPORT_KEY,
@@ -13,6 +14,7 @@ import {
 import type {
   OddsApiEvent,
   OddsApiEventMarketsResponse,
+  OddsApiMarket,
   OddsApiSport,
 } from "@/types/theOddsApi";
 
@@ -95,18 +97,49 @@ export async function fetchEventAvailableMarkets(
   return oddsApiGet<OddsApiEventMarketsResponse>(
     `/sports/${sportKey}/events/${eventId}/markets`,
     {
-      bookmakers: BET365_BOOKMAKER_KEY,
-      regions: "eu",
+      regions: ODDS_API_REGIONS,
     },
   );
+}
+
+export function pickPreferredBookmaker(
+  bookmakers: OddsApiEventMarketsResponse["bookmakers"],
+  preferredKeys: readonly string[] = PREFERRED_BOOKMAKER_KEYS,
+): { key: string; title: string; marketKeys: string[] } | null {
+  for (const preferred of preferredKeys) {
+    const match = bookmakers.find((bookmaker) => bookmaker.key === preferred);
+
+    if (match?.markets?.length) {
+      return {
+        key: match.key,
+        title: match.title,
+        marketKeys: match.markets.map((market) => market.key),
+      };
+    }
+  }
+
+  const [best] = [...bookmakers].sort(
+    (left, right) => (right.markets?.length ?? 0) - (left.markets?.length ?? 0),
+  );
+
+  if (!best?.markets?.length) {
+    return null;
+  }
+
+  return {
+    key: best.key,
+    title: best.title,
+    marketKeys: best.markets.map((market) => market.key),
+  };
 }
 
 export async function fetchEventOdds(
   sportKey: string,
   eventId: string,
   markets: string[],
+  bookmakerKey: string,
 ): Promise<OddsApiEvent> {
-  const cacheKey = `${sportKey}:${eventId}:${markets.slice().sort().join(",")}`;
+  const cacheKey = `${sportKey}:${eventId}:${bookmakerKey}:${markets.slice().sort().join(",")}`;
   const cached = eventOddsCache.get(cacheKey);
 
   if (cached) {
@@ -116,8 +149,8 @@ export async function fetchEventOdds(
   const response = await oddsApiGet<OddsApiEvent>(
     `/sports/${sportKey}/events/${eventId}/odds`,
     {
-      bookmakers: BET365_BOOKMAKER_KEY,
-      regions: "eu",
+      bookmakers: bookmakerKey,
+      regions: ODDS_API_REGIONS,
       markets: markets.join(","),
     },
   );
@@ -125,6 +158,17 @@ export async function fetchEventOdds(
   eventOddsCache.set(cacheKey, response);
 
   return response;
+}
+
+export function extractBookmakerMarkets(
+  response: OddsApiEvent | null | undefined,
+  bookmakerKey: string,
+): OddsApiMarket[] {
+  const bookmaker = response?.bookmakers?.find(
+    (entry) => entry.key === bookmakerKey,
+  );
+
+  return bookmaker?.markets ?? [];
 }
 
 export { normalizeTeamName, teamsMatchEvent } from "@/lib/oddsApi/teamMatching";

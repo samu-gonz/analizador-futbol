@@ -113,6 +113,8 @@ export function buildMarketsPayload(params: {
   eventId: string | null;
   sportKey: string | null;
   source: Bet365MarketsPayload["source"];
+  bookmaker?: string;
+  bookmakerTitle?: string;
   message?: string;
 }): Bet365MarketsPayload {
   const tabs = groupMarketsIntoTabs(params.markets, params.context);
@@ -123,7 +125,8 @@ export function buildMarketsPayload(params: {
   return {
     eventId: params.eventId,
     sportKey: params.sportKey,
-    bookmaker: "bet365",
+    bookmaker: params.bookmaker ?? "bet365",
+    bookmakerTitle: params.bookmakerTitle ?? "Bet365",
     tabs,
     totalSelections: allSelections.length,
     valueBetsCount: allSelections.filter((selection) => selection.hasValue).length,

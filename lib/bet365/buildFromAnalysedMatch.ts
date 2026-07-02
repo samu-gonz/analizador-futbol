@@ -24,6 +24,8 @@ export function buildBet365MarketsFromAnalysedMatch(
     },
     eventId: match.id,
     sportKey: "sports-api-pro",
+    bookmaker: "estimated",
+    bookmakerTitle: "Estimado (Poisson)",
     source: "sports-api-pro",
     message:
       "Mercados estimados con modelo Poisson + cuotas SportsAPI Pro. Para cuotas reales Bet365 de todos los mercados (incl. jugadores), añade THE_ODDS_API_KEY en .env.local.",

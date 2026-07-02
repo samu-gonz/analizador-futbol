@@ -219,7 +219,8 @@ export async function getBet365MarketsFromSportsApiPro(params: {
     return {
       eventId: params.gameId,
       sportKey: "sports-api-pro",
-      bookmaker: "bet365",
+      bookmaker: "sports-api-pro",
+      bookmakerTitle: "SportsAPI Pro",
       tabs: [],
       totalSelections: 0,
       valueBetsCount: 0,
@@ -238,7 +239,8 @@ export async function getBet365MarketsFromSportsApiPro(params: {
   return {
     eventId: params.gameId,
     sportKey: "sports-api-pro",
-    bookmaker: "bet365",
+    bookmaker: "sports-api-pro",
+    bookmakerTitle: "SportsAPI Pro",
     tabs,
     totalSelections: allSelections.length,
     valueBetsCount: allSelections.filter((selection) => selection.hasValue).length,

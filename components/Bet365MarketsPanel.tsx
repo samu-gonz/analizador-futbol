@@ -281,15 +281,15 @@ export function Bet365MarketsPanel({
 
   const sourceLabel =
     marketsPayload.source === "the-odds-api"
-      ? "Cuotas reales Bet365"
-      : "Cuotas estimadas (Poisson + SportsAPI Pro)";
+      ? `Cuotas reales · ${marketsPayload.bookmakerTitle}`
+      : `Cuotas estimadas · ${marketsPayload.bookmakerTitle}`;
 
   return (
     <section className="glass-panel overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
         <div>
           <h2 className="font-display text-lg font-bold text-white">
-            Mercados Bet365
+            Mercados de apuestas
           </h2>
           <p className="text-sm text-slate-500">{sourceLabel}</p>
         </div>

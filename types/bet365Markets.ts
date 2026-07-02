@@ -36,7 +36,8 @@ export interface Bet365MarketsTab {
 export interface Bet365MarketsPayload {
   eventId: string | null;
   sportKey: string | null;
-  bookmaker: "bet365";
+  bookmaker: string;
+  bookmakerTitle: string;
   tabs: Bet365MarketsTab[];
   totalSelections: number;
   valueBetsCount: number;
