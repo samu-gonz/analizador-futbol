@@ -286,7 +286,7 @@ export function Bet365MarketsPanel({
   const isCombinadaTab = showCombinadaTab && activeTab === COMBINADA_TAB_ID;
 
   const sourceLabel =
-    marketsPayload.source === "the-odds-api"
+    marketsPayload.source === "the-odds-api" || marketsPayload.source === "oddsportal"
       ? `Cuotas reales · ${marketsPayload.bookmakerTitle}`
       : marketsPayload.source === "sports-api-pro"
         ? `Cuotas base · ${marketsPayload.bookmakerTitle}`

@@ -42,6 +42,6 @@ export interface Bet365MarketsPayload {
   totalSelections: number;
   valueBetsCount: number;
   fetchedMarkets: number;
-  source: "the-odds-api" | "sports-api-pro" | "unavailable";
+  source: "the-odds-api" | "sports-api-pro" | "oddsportal" | "unavailable";
   message?: string;
 }

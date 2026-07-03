@@ -4,6 +4,7 @@ import { buildMarketsPayload } from "@/lib/bet365/marketsPayload";
 import { createMemoryCache } from "@/lib/cache/memoryCache";
 import { isSportsApiProConfigured } from "@/lib/sportsApiPro/config";
 import { getBet365MarketsFromSportsApiPro } from "@/services/sportsApiProBet365Fallback";
+import { getBet365MarketsFromOddsPortal } from "@/services/oddsPortalBet365Service";
 import { getMarketsFromWorldCupSnapshot } from "@/lib/oddsApi/worldCupOddsSnapshot";
 import { getBookmakerDisplayName, isTheOddsApiConfigured, PREFERRED_BOOKMAKER_KEYS, WORLD_CUP_SPORT_KEY } from "@/lib/oddsApi/config";
 import {
@@ -262,13 +263,25 @@ async function buildOddsApiFallbackPayload(
   reason: string,
   partial?: Partial<Bet365MarketsPayload>,
 ): Promise<Bet365MarketsPayload> {
-  if (params.analysedMatch) {
-    const fallback = buildBet365MarketsFromAnalysedMatch(params.analysedMatch);
+  const isWorldCup =
+    params.analysedMatch?.match.league.name
+      .toLowerCase()
+      .includes("world cup") ||
+    params.analysedMatch?.match.league.id === "5930";
 
+  const oddsPortalPayload = await getBet365MarketsFromOddsPortal({
+    homeTeam: params.homeTeam,
+    awayTeam: params.awayTeam,
+    homeTeamId: params.homeTeamId,
+    awayTeamId: params.awayTeamId,
+    isWorldCup,
+  });
+
+  if (oddsPortalPayload && oddsPortalPayload.tabs.length > 0) {
     return {
-      ...fallback,
+      ...oddsPortalPayload,
       ...partial,
-      message: `${reason} Mostrando mercados con cuotas base del calendario hasta recuperar acceso a casas de apuestas.`,
+      message: `${reason} ${oddsPortalPayload.message ?? "Cuotas Bet365 vía OddsPortal."}`,
     };
   }
 
@@ -279,6 +292,7 @@ async function buildOddsApiFallbackPayload(
       awayTeam: params.awayTeam,
       homeTeamId: params.homeTeamId,
       awayTeamId: params.awayTeamId,
+      analysedMatch: params.analysedMatch,
     });
 
     if (sapPayload.tabs.length > 0) {
@@ -288,6 +302,16 @@ async function buildOddsApiFallbackPayload(
         message: `${reason} Mostrando mercados disponibles en SportsAPI Pro.`,
       };
     }
+  }
+
+  if (params.analysedMatch) {
+    const fallback = buildBet365MarketsFromAnalysedMatch(params.analysedMatch);
+
+    return {
+      ...fallback,
+      ...partial,
+      message: `${reason} Mostrando mercados estimados del modelo hasta recuperar cuotas reales.`,
+    };
   }
 
   return emptyPayload(reason, partial);
@@ -328,23 +352,17 @@ async function fetchBet365MarketsForMatch(params: {
   analysedMatch?: AnalysedMatch;
 }): Promise<Bet365MarketsPayload> {
   if (!isTheOddsApiConfigured()) {
-    if (params.analysedMatch) {
-      return buildBet365MarketsFromAnalysedMatch(params.analysedMatch);
-    }
+    const fallback = await buildOddsApiFallbackPayload(
+      params,
+      "The Odds API no configurada.",
+    );
 
-    if (isSportsApiProConfigured() && params.gameId) {
-      return getBet365MarketsFromSportsApiPro({
-        gameId: params.gameId,
-        homeTeam: params.homeTeam,
-        awayTeam: params.awayTeam,
-        homeTeamId: params.homeTeamId,
-        awayTeamId: params.awayTeamId,
-        analysedMatch: params.analysedMatch,
-      });
+    if (fallback.source !== "unavailable") {
+      return fallback;
     }
 
     return emptyPayload(
-      "Configura THE_ODDS_API_KEY en .env.local para cuotas reales Bet365.",
+      "Configura THE_ODDS_API_KEY o activa ODDS_PORTAL_SCRAPING_ENABLED=true en desarrollo.",
     );
   }
 

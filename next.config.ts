@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["puppeteer", "puppeteer-core", "@puppeteer/browsers"],
   // En Windows el file-watcher y la caché webpack dejan chunks corruptos.
   webpack: (config, { dev }) => {
     if (dev) {
