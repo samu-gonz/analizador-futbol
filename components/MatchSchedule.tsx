@@ -7,6 +7,7 @@ import {
   formatMatchDayLabel,
   formatMatchDaySubtitle,
 } from "@/lib/matchDates";
+import { shouldShowMatchScore } from "@/lib/matchStatus";
 import type { AnalysedMatch } from "@/types/football";
 
 interface DayOption {
@@ -187,6 +188,7 @@ export function MatchSchedule({
           matches.map((item) => {
             const isSelected = item.match.id === selectedMatchId;
             const status = formatStatus(item.match.status);
+            const showScore = shouldShowMatchScore(item.match);
 
             return (
               <button
@@ -218,12 +220,17 @@ export function MatchSchedule({
                       logoUrl={item.match.homeTeam.logoUrl}
                     />
                     <span
-                      className={`truncate text-sm font-medium ${
+                      className={`min-w-0 flex-1 truncate text-sm font-medium ${
                         isSelected ? "text-white" : "text-slate-300"
                       }`}
                     >
                       {item.match.homeTeam.name}
                     </span>
+                    {showScore && (
+                      <span className="shrink-0 font-display text-base font-black tabular-nums text-white">
+                        {item.match.score?.home}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2.5">
                     <TeamLogo
@@ -231,12 +238,17 @@ export function MatchSchedule({
                       logoUrl={item.match.awayTeam.logoUrl}
                     />
                     <span
-                      className={`truncate text-sm font-medium ${
+                      className={`min-w-0 flex-1 truncate text-sm font-medium ${
                         isSelected ? "text-white" : "text-slate-300"
                       }`}
                     >
                       {item.match.awayTeam.name}
                     </span>
+                    {showScore && (
+                      <span className="shrink-0 font-display text-base font-black tabular-nums text-white">
+                        {item.match.score?.away}
+                      </span>
+                    )}
                   </div>
                 </div>
               </button>

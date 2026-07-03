@@ -2,6 +2,7 @@ import {
   buildValueCombinadas,
   flattenMarketsPayloadToSelections,
 } from "@/lib/combinada/buildValueCombinadas";
+import { isMatchEligibleForCombinada } from "@/lib/matchStatus";
 import { getBet365MarketsForAnalysedMatch } from "@/services/bet365MarketsService";
 import type { AnalysedMatch } from "@/types/football";
 import type { ValueCombinada } from "@/types/combinada";
@@ -9,6 +10,10 @@ import type { ValueCombinada } from "@/types/combinada";
 export async function getValueCombinadasForMatch(
   analysedMatch: AnalysedMatch,
 ): Promise<ValueCombinada[]> {
+  if (!isMatchEligibleForCombinada(analysedMatch.match.status)) {
+    return [];
+  }
+
   const { match } = analysedMatch;
   const marketsPayload = await getBet365MarketsForAnalysedMatch(analysedMatch);
 
@@ -31,7 +36,9 @@ export async function getValueCombinadasForMatches(
   options?: { maxMatches?: number },
 ): Promise<ValueCombinada[]> {
   const maxMatches = options?.maxMatches ?? 8;
-  const targets = analysedMatches.slice(0, maxMatches);
+  const targets = analysedMatches
+    .filter((item) => isMatchEligibleForCombinada(item.match.status))
+    .slice(0, maxMatches);
 
   const pools = await Promise.all(
     targets.map(async (analysedMatch) => {

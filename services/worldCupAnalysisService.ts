@@ -116,6 +116,9 @@ function buildPredictions(
 }
 
 function mapSapGameToMatch(game: SapGame): Match {
+  const status = mapMatchStatus(game.statusGroup);
+  const hasScore = status === "finished" || status === "live";
+
   return {
     id: String(game.id),
     homeTeam: {
@@ -140,7 +143,13 @@ function mapSapGameToMatch(game: SapGame): Match {
       country: "International",
     },
     date: game.startTime,
-    status: mapMatchStatus(game.statusGroup),
+    status,
+    score: hasScore
+      ? {
+          home: game.homeCompetitor.score ?? 0,
+          away: game.awayCompetitor.score ?? 0,
+        }
+      : undefined,
   };
 }
 

@@ -6,6 +6,7 @@ import {
   groupMatchesByDay,
   resolveSelectedDay,
 } from "@/lib/matchDates";
+import { isMatchEligibleForCombinada } from "@/lib/matchStatus";
 import { isSportsApiProConfigured } from "@/lib/sportsApiPro/config";
 import { getAnalysedMatches } from "@/services/predictionEngine";
 import { getValueCombinadasForMatches } from "@/services/combinadaService";
@@ -59,6 +60,9 @@ export default async function CombinadaPage({ searchParams }: CombinadaPageProps
   }
 
   const dayMatches = matchesByDay[selectedDate] ?? [];
+  const eligibleMatches = dayMatches.filter((item) =>
+    isMatchEligibleForCombinada(item.match.status),
+  );
   const combinadas = await getValueCombinadasForMatches(dayMatches, {
     maxMatches: 10,
   });
@@ -78,8 +82,8 @@ export default async function CombinadaPage({ searchParams }: CombinadaPageProps
           day: "numeric",
           month: "long",
           timeZone: "Europe/Madrid",
-        }).format(new Date(`${selectedDate}T12:00:00`))} · ${dayMatches.length} partidos analizados.`}
-        emptyMessage="Hoy no hay combinadas en rango 3–12. Prueba otros partidos o revisa el análisis individual."
+        }).format(new Date(`${selectedDate}T12:00:00`))} · ${eligibleMatches.length} partido${eligibleMatches.length === 1 ? "" : "s"} disponibles para combinar.`}
+        emptyMessage="No hay combinadas en rango 3–12 para partidos pendientes. Los finalizados no entran en combinadas."
       />
     </AppShell>
   );

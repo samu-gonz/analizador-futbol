@@ -14,6 +14,7 @@ interface Bet365MarketsPanelProps {
   marketsPayload: Bet365MarketsPayload;
   oddsApiConfigured?: boolean;
   combinadas?: ValueCombinada[];
+  showCombinadaTab?: boolean;
 }
 
 const COLUMN_TOOLTIPS = {
@@ -257,6 +258,7 @@ export function Bet365MarketsPanel({
   marketsPayload,
   oddsApiConfigured = false,
   combinadas = [],
+  showCombinadaTab = true,
 }: Bet365MarketsPanelProps) {
   const { match } = analysedMatch;
   const [activeTab, setActiveTab] = useState<string>(
@@ -266,8 +268,13 @@ export function Bet365MarketsPanel({
   useEffect(() => {
     if (marketsPayload.tabs.length > 0) {
       setActiveTab(marketsPayload.tabs[0].id);
+      return;
     }
-  }, [marketsPayload, match.id]);
+
+    if (showCombinadaTab) {
+      setActiveTab(COMBINADA_TAB_ID);
+    }
+  }, [marketsPayload, match.id, showCombinadaTab]);
 
   const activeTabData = useMemo(
     () =>
@@ -276,7 +283,7 @@ export function Bet365MarketsPanel({
     [activeTab, marketsPayload],
   );
 
-  const isCombinadaTab = activeTab === COMBINADA_TAB_ID;
+  const isCombinadaTab = showCombinadaTab && activeTab === COMBINADA_TAB_ID;
 
   const sourceLabel =
     marketsPayload.source === "the-odds-api"
@@ -329,24 +336,26 @@ export function Bet365MarketsPanel({
 
       <div className="relative border-b border-white/[0.06]">
         <div className="schedule-scroll flex gap-2 overflow-x-auto px-4 py-3 scroll-smooth md:flex-wrap md:overflow-x-visible">
-          <button
-            type="button"
-            onClick={() => setActiveTab(COMBINADA_TAB_ID)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-              isCombinadaTab
-                ? "chip-active"
-                : "border border-emerald-500/35 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
-            }`}
-          >
-            Combinada
-            <span
-              className={`ml-1.5 text-xs ${isCombinadaTab ? "text-emerald-950/70" : "text-emerald-300/80"}`}
+          {showCombinadaTab && (
+            <button
+              type="button"
+              onClick={() => setActiveTab(COMBINADA_TAB_ID)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                isCombinadaTab
+                  ? "chip-active"
+                  : "border border-emerald-500/35 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+              }`}
             >
-              ({combinadas.length})
-            </span>
-          </button>
+              Combinada
+              <span
+                className={`ml-1.5 text-xs ${isCombinadaTab ? "text-emerald-950/70" : "text-emerald-300/80"}`}
+              >
+                ({combinadas.length})
+              </span>
+            </button>
+          )}
 
-          {marketsPayload.tabs.length > 0 && (
+          {showCombinadaTab && marketsPayload.tabs.length > 0 && (
             <span
               aria-hidden
               className="mx-0.5 hidden h-6 w-px shrink-0 self-center bg-white/10 sm:block"

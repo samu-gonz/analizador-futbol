@@ -2,6 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { MatchSchedule } from "@/components/MatchSchedule";
+import {
+  formatMatchScore,
+  shouldShowMatchScore,
+} from "@/lib/matchStatus";
 import type { AnalysedMatch } from "@/types/football";
 
 interface DayOption {
@@ -138,6 +142,7 @@ function MobileBottomBar({
   onOpen: () => void;
 }) {
   const { homeTeam, awayTeam, date, status } = match.match;
+  const showScore = shouldShowMatchScore(match.match);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#060a12]/95 backdrop-blur-xl lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -150,9 +155,15 @@ function MobileBottomBar({
           <span className="truncate text-sm font-bold text-white">
             {shortTeamName(homeTeam.name)}
           </span>
-          <span className="shrink-0 text-[10px] font-semibold uppercase text-slate-500">
-            vs
-          </span>
+          {showScore ? (
+            <span className="shrink-0 font-display text-sm font-black tabular-nums text-emerald-300">
+              {formatMatchScore(match.match)}
+            </span>
+          ) : (
+            <span className="shrink-0 text-[10px] font-semibold uppercase text-slate-500">
+              vs
+            </span>
+          )}
           <span className="truncate text-sm font-bold text-white">
             {shortTeamName(awayTeam.name)}
           </span>
@@ -167,7 +178,7 @@ function MobileBottomBar({
           </span>
           <span className="text-[10px] tabular-nums text-slate-500">
             {formatKickoffTime(date)}
-            {status === "live" ? " · En vivo" : ""}
+            {status === "live" ? " · En vivo" : status === "finished" ? " · Final" : ""}
           </span>
         </div>
       </button>

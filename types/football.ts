@@ -25,6 +25,10 @@ export interface Match {
   league: League;
   date: string;
   status: MatchStatus;
+  score?: {
+    home: number;
+    away: number;
+  };
 }
 
 export interface MatchResultOdds {

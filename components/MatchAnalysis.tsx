@@ -6,6 +6,11 @@ import {
   flattenMarketsPayloadToSelections,
 } from "@/lib/combinada/buildValueCombinadas";
 import { isTheOddsApiConfigured } from "@/lib/oddsApi/config";
+import {
+  formatMatchScore,
+  isMatchEligibleForCombinada,
+  shouldShowMatchScore,
+} from "@/lib/matchStatus";
 import { getBet365MarketsForAnalysedMatch } from "@/services/bet365MarketsService";
 import type { AnalysedMatch } from "@/types/football";
 
@@ -128,6 +133,7 @@ function TeamBadge({
 async function MatchMarkets({ analysedMatch }: { analysedMatch: AnalysedMatch }) {
   const marketsPayload = await getBet365MarketsForAnalysedMatch(analysedMatch);
   const { match } = analysedMatch;
+  const showCombinadaTab = isMatchEligibleForCombinada(match.status);
 
   const pool = flattenMarketsPayloadToSelections({
     matchId: match.id,
@@ -136,11 +142,13 @@ async function MatchMarkets({ analysedMatch }: { analysedMatch: AnalysedMatch })
     tabs: marketsPayload.tabs,
   });
 
-  const combinadas = buildValueCombinadas([pool], {
-    minLegs: 2,
-    maxLegs: 3,
-    maxResults: 5,
-  });
+  const combinadas = showCombinadaTab
+    ? buildValueCombinadas([pool], {
+        minLegs: 2,
+        maxLegs: 3,
+        maxResults: 5,
+      })
+    : [];
 
   return (
     <Bet365MarketsPanel
@@ -148,7 +156,78 @@ async function MatchMarkets({ analysedMatch }: { analysedMatch: AnalysedMatch })
       marketsPayload={marketsPayload}
       oddsApiConfigured={isTheOddsApiConfigured()}
       combinadas={combinadas}
+      showCombinadaTab={showCombinadaTab}
     />
+  );
+}
+
+function MatchCenterBadge({
+  match,
+  status,
+}: {
+  match: AnalysedMatch["match"];
+  status: ReturnType<typeof formatStatusLabel>;
+}) {
+  if (shouldShowMatchScore(match)) {
+    return (
+      <div className="flex shrink-0 flex-col items-center gap-2 px-1">
+        <span className="font-display text-2xl font-black tabular-nums text-white sm:text-3xl">
+          {formatMatchScore(match)}
+        </span>
+        <span
+          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${status.className}`}
+        >
+          {status.label}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-2 px-1">
+      <span className="font-display text-lg font-black text-slate-500">VS</span>
+      <span
+        className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${status.className}`}
+      >
+        {status.label}
+      </span>
+    </div>
+  );
+}
+
+function MatchCenterBadgeDesktop({
+  match,
+  status,
+}: {
+  match: AnalysedMatch["match"];
+  status: ReturnType<typeof formatStatusLabel>;
+}) {
+  if (shouldShowMatchScore(match)) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex min-w-[7rem] items-center justify-center rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-display text-3xl font-black tabular-nums text-white">
+          {formatMatchScore(match)}
+        </div>
+        <span
+          className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${status.className}`}
+        >
+          {status.label}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-black/30 font-display text-2xl font-black text-slate-600">
+        VS
+      </div>
+      <span
+        className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${status.className}`}
+      >
+        {status.label}
+      </span>
+    </div>
   );
 }
 
@@ -181,16 +260,7 @@ export function MatchAnalysis({ analysedMatch }: MatchAnalysisProps) {
             compact
           />
 
-          <div className="flex shrink-0 flex-col items-center gap-2 px-1">
-            <span className="font-display text-lg font-black text-slate-500">
-              VS
-            </span>
-            <span
-              className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${status.className}`}
-            >
-              {status.label}
-            </span>
-          </div>
+          <MatchCenterBadge match={match} status={status} />
 
           <TeamBadge
             name={match.awayTeam.name}
@@ -207,16 +277,7 @@ export function MatchAnalysis({ analysedMatch }: MatchAnalysisProps) {
             role="Local"
           />
 
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-black/30 font-display text-2xl font-black text-slate-600">
-              VS
-            </div>
-            <span
-              className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${status.className}`}
-            >
-              {status.label}
-            </span>
-          </div>
+          <MatchCenterBadgeDesktop match={match} status={status} />
 
           <div className="justify-self-end">
             <TeamBadge
