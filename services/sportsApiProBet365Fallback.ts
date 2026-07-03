@@ -1,26 +1,10 @@
 import { buildBet365MarketsFromAnalysedMatch } from "@/lib/bet365/buildFromAnalysedMatch";
-import { estimateSelectionProbability } from "@/lib/bet365/probabilityEstimator";
+import { buildMarketsPayload } from "@/lib/bet365/marketsPayload";
 import { percentToDecimalOdd } from "@/lib/sportsApiPro/odds";
 import type { SapGameOdds, SapPredictionMarket } from "@/lib/sportsApiPro/types";
 import { calculatePoissonProbability } from "@/services/predictionEngine";
 import { fetchWorldCupOdds } from "@/services/sportsApiProClient";
-import {
-  calculateValuePercent,
-  hasValueFromEstimate,
-  impliedProbabilityFromOdds,
-} from "@/lib/valueBetting";
-import {
-  MARKET_TAB_LABELS,
-  MARKET_TAB_ORDER,
-  getMarketLabel,
-  getMarketTab,
-} from "@/lib/oddsApi/soccerMarkets";
-import type {
-  Bet365MarketGroup,
-  Bet365MarketsPayload,
-  Bet365MarketsTab,
-  MarketTabId,
-} from "@/types/bet365Markets";
+import type { Bet365MarketsPayload } from "@/types/bet365Markets";
 import type { OddsApiMarket, OddsApiOutcome } from "@/types/theOddsApi";
 
 function mapPredictionTitleToMarketKey(title: string): string {
@@ -112,76 +96,6 @@ function buildCornersMarket(
   };
 }
 
-function buildSelection(
-  market: OddsApiMarket,
-  outcome: OddsApiOutcome,
-  context: Parameters<typeof estimateSelectionProbability>[3],
-): Bet365MarketsPayload["tabs"][number]["groups"][number]["selections"][number] {
-  const impliedProbability = impliedProbabilityFromOdds(outcome.price);
-  const estimatedProbability = estimateSelectionProbability(
-    market.key,
-    outcome,
-    market.outcomes,
-    context,
-  );
-
-  return {
-    id: `${market.key}-${outcome.name}-${outcome.point ?? "na"}`,
-    marketKey: market.key,
-    marketName: getMarketLabel(market.key),
-    selectionName:
-      outcome.point !== undefined
-        ? `${outcome.name} (${outcome.point})`
-        : outcome.name,
-    decimalOdd: outcome.price,
-    impliedProbability,
-    estimatedProbability,
-    valuePercent: calculateValuePercent(outcome.price, estimatedProbability),
-    hasValue: hasValueFromEstimate(outcome.price, estimatedProbability),
-    point: outcome.point,
-  };
-}
-
-function groupIntoTabs(
-  markets: OddsApiMarket[],
-  context: Parameters<typeof estimateSelectionProbability>[3],
-): Bet365MarketsTab[] {
-  const tabMap = new Map<MarketTabId, Map<string, Bet365MarketGroup>>();
-
-  for (const tabId of MARKET_TAB_ORDER) {
-    tabMap.set(tabId, new Map());
-  }
-
-  for (const market of markets) {
-    if (market.outcomes.length === 0) {
-      continue;
-    }
-
-    const tabId = getMarketTab(market.key);
-    const groups = tabMap.get(tabId) ?? new Map();
-    const marketName =
-      market.key.startsWith("sap_")
-        ? market.key.replace(/^sap_/, "").replaceAll("_", " ")
-        : getMarketLabel(market.key);
-
-    groups.set(market.key, {
-      marketKey: market.key,
-      marketName,
-      selections: market.outcomes.map((outcome) =>
-        buildSelection(market, outcome, context),
-      ),
-    });
-
-    tabMap.set(tabId, groups);
-  }
-
-  return MARKET_TAB_ORDER.map((tabId) => ({
-    id: tabId,
-    label: MARKET_TAB_LABELS[tabId],
-    groups: Array.from(tabMap.get(tabId)?.values() ?? []),
-  })).filter((tab) => tab.groups.length > 0);
-}
-
 export async function getBet365MarketsFromSportsApiPro(params: {
   gameId: string;
   homeTeam: string;
@@ -231,22 +145,15 @@ export async function getBet365MarketsFromSportsApiPro(params: {
     };
   }
 
-  const tabs = groupIntoTabs(markets, context);
-  const allSelections = tabs.flatMap((tab) =>
-    tab.groups.flatMap((group) => group.selections),
-  );
-
-  return {
+  return buildMarketsPayload({
+    markets,
+    context,
     eventId: params.gameId,
     sportKey: "sports-api-pro",
     bookmaker: "sports-api-pro",
     bookmakerTitle: "SportsAPI Pro",
-    tabs,
-    totalSelections: allSelections.length,
-    valueBetsCount: allSelections.filter((selection) => selection.hasValue).length,
-    fetchedMarkets: markets.length,
     source: "sports-api-pro",
     message:
       "Cuotas de comunidad vía SportsAPI Pro. Para todos los mercados Bet365, añade THE_ODDS_API_KEY.",
-  };
+  });
 }

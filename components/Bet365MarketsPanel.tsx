@@ -288,7 +288,9 @@ export function Bet365MarketsPanel({
   const sourceLabel =
     marketsPayload.source === "the-odds-api"
       ? `Cuotas reales · ${marketsPayload.bookmakerTitle}`
-      : `Cuotas estimadas · ${marketsPayload.bookmakerTitle}`;
+      : marketsPayload.source === "unavailable"
+        ? "Sin cuotas reales disponibles"
+        : `Cuotas estimadas · ${marketsPayload.bookmakerTitle}`;
 
   return (
     <section className="glass-panel overflow-hidden">
@@ -328,12 +330,26 @@ export function Bet365MarketsPanel({
         </div>
       )}
 
-      {marketsPayload.message && marketsPayload.tabs.length > 0 && (
-        <p className="border-b border-white/[0.06] px-5 py-2 text-xs text-amber-400/90">
+      {marketsPayload.message && (
+        <p
+          className={`border-b border-white/[0.06] px-5 py-3 text-xs ${
+            marketsPayload.tabs.length === 0
+              ? "text-amber-200"
+              : "text-amber-400/90"
+          }`}
+        >
           {marketsPayload.message}
         </p>
       )}
 
+      {marketsPayload.tabs.length === 0 && !marketsPayload.message && (
+        <div className="px-5 py-10 text-center text-sm text-slate-400">
+          No hay mercados disponibles para este partido.
+        </div>
+      )}
+
+      {(marketsPayload.tabs.length > 0 || showCombinadaTab) && (
+        <>
       <div className="relative border-b border-white/[0.06]">
         <div className="schedule-scroll flex gap-2 overflow-x-auto px-4 py-3 scroll-smooth md:flex-wrap md:overflow-x-visible">
           {showCombinadaTab && (
@@ -428,6 +444,8 @@ export function Bet365MarketsPanel({
             </>
           )}
         </div>
+      )}
+        </>
       )}
     </section>
   );

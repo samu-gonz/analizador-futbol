@@ -1,8 +1,14 @@
 import { estimateSelectionProbability } from "@/lib/bet365/probabilityEstimator";
 import {
+  formatBet365SelectionName,
+  getBet365MarketGroupName,
+  getBet365MarketLabel,
+  groupOutcomesByTeamDescription,
+  isTeamScopedMarket,
+} from "@/lib/bet365/selectionLabels";
+import {
   MARKET_TAB_LABELS,
   MARKET_TAB_ORDER,
-  getMarketLabel,
   getMarketTab,
 } from "@/lib/oddsApi/soccerMarkets";
 import {
@@ -20,26 +26,11 @@ import type {
 import type { ProbabilityEstimateContext } from "@/lib/bet365/probabilityEstimator";
 import type { OddsApiMarket, OddsApiOutcome } from "@/types/theOddsApi";
 
-function formatSelectionName(outcome: OddsApiOutcome): string {
-  if (outcome.point !== undefined) {
-    const pointLabel = Number.isInteger(outcome.point)
-      ? outcome.point
-      : outcome.point.toFixed(2);
-
-    return `${outcome.name} (${pointLabel})`;
-  }
-
-  if (outcome.description) {
-    return `${outcome.description} — ${outcome.name}`;
-  }
-
-  return outcome.name;
-}
-
 function buildSelection(
   market: OddsApiMarket,
   outcome: OddsApiOutcome,
   context: ProbabilityEstimateContext,
+  marketName: string,
 ): Bet365MarketSelection {
   const impliedProbability = impliedProbabilityFromOdds(outcome.price);
   const estimatedProbability = estimateSelectionProbability(
@@ -52,8 +43,11 @@ function buildSelection(
   return {
     id: `${market.key}-${outcome.name}-${outcome.point ?? "na"}-${outcome.description ?? ""}`,
     marketKey: market.key,
-    marketName: getMarketLabel(market.key),
-    selectionName: formatSelectionName(outcome),
+    marketName,
+    selectionName: formatBet365SelectionName(market.key, outcome, {
+      homeTeamName: context.homeTeamName,
+      awayTeamName: context.awayTeamName,
+    }),
     decimalOdd: outcome.price,
     impliedProbability,
     estimatedProbability,
@@ -62,6 +56,18 @@ function buildSelection(
     point: outcome.point,
     description: outcome.description,
   };
+}
+
+function addMarketGroup(
+  tabMap: Map<MarketTabId, Map<string, Bet365MarketGroup>>,
+  tabId: MarketTabId,
+  groupKey: string,
+  group: Bet365MarketGroup,
+): void {
+  const groups = tabMap.get(tabId) ?? new Map();
+
+  groups.set(groupKey, group);
+  tabMap.set(tabId, groups);
 }
 
 export function groupMarketsIntoTabs(
@@ -80,22 +86,39 @@ export function groupMarketsIntoTabs(
     }
 
     const tabId = getMarketTab(market.key);
-    const groups = tabMap.get(tabId) ?? new Map();
+
+    if (isTeamScopedMarket(market.key)) {
+      const teamGroups = groupOutcomesByTeamDescription(market.outcomes);
+
+      for (const [teamName, outcomes] of teamGroups) {
+        const marketName = getBet365MarketGroupName(market.key, teamName);
+        const selections = outcomes.map((outcome) =>
+          buildSelection(market, outcome, context, marketName),
+        );
+
+        addMarketGroup(tabMap, tabId, `${market.key}__${teamName}`, {
+          marketKey: market.key,
+          marketName,
+          selections,
+        });
+      }
+
+      continue;
+    }
+
     const marketName = market.key.startsWith("sap_")
-      ? market.key.replace(/^sap_/, "").replaceAll("_", " ")
-      : getMarketLabel(market.key);
+      ? getBet365MarketLabel(market.key)
+      : getBet365MarketLabel(market.key);
 
     const selections = market.outcomes.map((outcome) =>
-      buildSelection(market, outcome, context),
+      buildSelection(market, outcome, context, marketName),
     );
 
-    groups.set(market.key, {
+    addMarketGroup(tabMap, tabId, market.key, {
       marketKey: market.key,
       marketName,
       selections,
     });
-
-    tabMap.set(tabId, groups);
   }
 
   return MARKET_TAB_ORDER.map((tabId) => ({
