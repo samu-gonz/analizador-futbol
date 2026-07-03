@@ -389,7 +389,7 @@ export function Bet365MarketsPanel({
             combinadas={combinadas}
             title="Combinadas de este partido"
             subtitle={`Apuestas múltiples con valor en ${match.homeTeam.name} vs ${match.awayTeam.name}.`}
-            emptyMessage="No hay combinadas viables en este partido (mín. 2 piernas con valor y ≥22% de prob. cada una)."
+            emptyMessage="No hay combinadas viables en este partido. Buscamos cuotas totales 3–12 con piernas sólidas (≤3.2)."
           />
         ) : marketsPayload.tabs.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">

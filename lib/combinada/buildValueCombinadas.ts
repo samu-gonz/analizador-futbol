@@ -1,7 +1,9 @@
 import {
+  MAX_LEG_ODD,
   MIN_LEG_PROBABILITY_PERCENT,
   calculateCombinadaViabilityScore,
   getMinCombinedProbability,
+  isReasonableCombinadaOdd,
 } from "@/lib/combinada/combinadaScoring";
 import {
   MIN_VALUE_EDGE_PERCENT,
@@ -39,6 +41,7 @@ function getValueSelections(pool: CombinadaLegPool): CombinadaLeg[] {
 
   for (const selection of pool.selections) {
     if (
+      selection.decimalOdd > MAX_LEG_ODD ||
       selection.estimatedProbability < MIN_LEG_PROBABILITY_PERCENT ||
       (!selection.hasValue && selection.valuePercent < MIN_VALUE_EDGE_PERCENT)
     ) {
@@ -109,10 +112,19 @@ function buildCombinadaFromLegs(legs: CombinadaLeg[]): ValueCombinada | null {
     return null;
   }
 
+  if (!isReasonableCombinadaOdd(combinedOdd)) {
+    return null;
+  }
+
   const viabilityScore = calculateCombinadaViabilityScore(
     combinedValuePercent,
     combinedModelProbability,
+    combinedOdd,
   );
+
+  if (viabilityScore <= 0) {
+    return null;
+  }
 
   const id = legs
     .map((leg) => `${leg.matchId}:${leg.marketKey}:${leg.selectionName}`)
@@ -196,7 +208,14 @@ export function buildValueCombinadas(
         return right.viabilityScore - left.viabilityScore;
       }
 
-      return right.combinedModelProbability - left.combinedModelProbability;
+      if (right.combinedModelProbability !== left.combinedModelProbability) {
+        return right.combinedModelProbability - left.combinedModelProbability;
+      }
+
+      const leftOddDistance = Math.abs(left.combinedOdd - 5);
+      const rightOddDistance = Math.abs(right.combinedOdd - 5);
+
+      return leftOddDistance - rightOddDistance;
     })
     .slice(0, maxResults);
 }

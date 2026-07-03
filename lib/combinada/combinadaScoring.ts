@@ -5,7 +5,30 @@ import {
 } from "@/lib/valueBetting";
 
 /** Probabilidad mínima por pierna: evita acumular largos improbables. */
-export const MIN_LEG_PROBABILITY_PERCENT = 22;
+export const MIN_LEG_PROBABILITY_PERCENT = 25;
+
+/** Cuota máxima por pierna: solo favoritos / selecciones sólidas. */
+export const MAX_LEG_ODD = 3.2;
+
+/** Rango de cuota combinada buscado (tipo 3–5, alguna hasta 10). */
+export const MIN_COMBINED_ODD = 3;
+export const MAX_COMBINED_ODD = 12;
+export const IDEAL_COMBINED_ODD = 5;
+
+export function isReasonableCombinadaOdd(combinedOdd: number): boolean {
+  return combinedOdd >= MIN_COMBINED_ODD && combinedOdd <= MAX_COMBINED_ODD;
+}
+
+/** Mayor puntuación cuanto más cerca de ~5.0 (zona 3–8). */
+export function combinedOddFitScore(combinedOdd: number): number {
+  if (!isReasonableCombinadaOdd(combinedOdd)) {
+    return 0;
+  }
+
+  const distance = Math.abs(combinedOdd - IDEAL_COMBINED_ODD);
+
+  return Math.max(0, Number((10 - distance * 1.4).toFixed(2)));
+}
 
 /** Probabilidad conjunta mínima según número de selecciones. */
 export function getMinCombinedProbability(legCount: number): number {
@@ -33,14 +56,23 @@ function getGoodProbabilityThreshold(legCount: number): number {
 export function calculateCombinadaViabilityScore(
   combinedValuePercent: number,
   combinedModelProbability: number,
+  combinedOdd: number,
 ): number {
   if (combinedModelProbability <= 0) {
     return 0;
   }
 
+  const oddFit = combinedOddFitScore(combinedOdd);
+
+  if (oddFit <= 0) {
+    return 0;
+  }
+
   const probabilityFactor = Math.sqrt(combinedModelProbability / 100);
 
-  return Number((combinedValuePercent * probabilityFactor).toFixed(3));
+  return Number(
+    ((combinedValuePercent * probabilityFactor * oddFit) / 10).toFixed(3),
+  );
 }
 
 export function formatHitFrequency(probabilityPercent: number): string {

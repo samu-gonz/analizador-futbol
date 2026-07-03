@@ -79,7 +79,7 @@ export default async function CombinadaPage({ searchParams }: CombinadaPageProps
           month: "long",
           timeZone: "Europe/Madrid",
         }).format(new Date(`${selectedDate}T12:00:00`))} · ${dayMatches.length} partidos analizados.`}
-        emptyMessage="Hoy no hay combinadas viables. Hace falta al menos 2 piernas con valor y probabilidad conjunta mínima según el modelo."
+        emptyMessage="Hoy no hay combinadas en rango 3–12. Prueba otros partidos o revisa el análisis individual."
       />
     </AppShell>
   );

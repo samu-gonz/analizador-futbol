@@ -129,7 +129,7 @@ export function ValueCombinadaPanel({
   combinadas,
   title = "Combinadas con valor",
   subtitle = "Sugerencias ordenadas por viabilidad: ventaja del modelo y probabilidad real de acertar todas las piernas.",
-  emptyMessage = "No hay combinadas viables ahora. Hace falta al menos 2 selecciones con valor y probabilidad razonable por pierna.",
+  emptyMessage = "No hay combinadas viables ahora. Buscamos cuotas totales entre 3 y 12 (ideal ~4–6) con piernas sólidas (cuota ≤3.2).",
   embedded = false,
 }: ValueCombinadaPanelProps) {
   const body =
@@ -146,11 +146,10 @@ export function ValueCombinadaPanel({
     );
 
   const footer = (
-    <p className="text-[11px] leading-relaxed text-slate-500">
-      Solo entran piernas con ≥22% de probabilidad según el modelo. El ranking
-      prioriza combinadas con buena ventaja y probabilidad conjunta realista, no
-      solo cuotas altas. Más selecciones = más riesgo.
-    </p>
+      <p className="text-[11px] leading-relaxed text-slate-500">
+        Cuota total entre 3 y 12 (priorizamos ~4–6). Cada pierna ≤3.2 y ≥25% de
+        probabilidad según el modelo. Sin locuras de cuota mil.
+      </p>
   );
 
   if (embedded) {
@@ -188,9 +187,8 @@ export function ValueCombinadaPanel({
       )}
 
       <p className="border-t border-white/[0.06] px-4 py-3 text-[11px] leading-relaxed text-slate-500 sm:px-5">
-        Solo entran piernas con ≥22% de probabilidad según el modelo. El ranking
-        prioriza combinadas con buena ventaja y probabilidad conjunta realista, no
-        solo cuotas altas. Más selecciones = más riesgo.
+        Cuota total entre 3 y 12 (priorizamos ~4–6). Cada pierna ≤3.2 y ≥25% de
+        probabilidad según el modelo. Sin locuras de cuota mil.
       </p>
     </section>
   );
