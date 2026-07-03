@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type AppNavActive = "analysis" | "live" | "standings";
+type AppNavActive = "analysis" | "live" | "standings" | "combinada";
 
 interface AppNavProps {
   active?: AppNavActive;
@@ -8,6 +8,7 @@ interface AppNavProps {
 
 const links: { id: AppNavActive; href: string; label: string; shortLabel: string }[] = [
   { id: "analysis", href: "/", label: "Análisis", shortLabel: "Análisis" },
+  { id: "combinada", href: "/combinada", label: "Combinada", shortLabel: "Acca" },
   { id: "live", href: "/live", label: "En Vivo", shortLabel: "Vivo" },
   { id: "standings", href: "/clasificacion", label: "Clasificación", shortLabel: "Grupos" },
 ];

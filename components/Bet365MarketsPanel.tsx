@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
+import { ValueCombinadaPanel } from "@/components/ValueCombinadaPanel";
 import { formatValueEdge, type ValueEdgeTier } from "@/lib/valueBetting";
 import type { AnalysedMatch } from "@/types/football";
 import type { Bet365MarketsPayload, Bet365MarketsTab } from "@/types/bet365Markets";
+import type { ValueCombinada } from "@/types/combinada";
+
+const COMBINADA_TAB_ID = "combinada";
 
 interface Bet365MarketsPanelProps {
   analysedMatch: AnalysedMatch;
   marketsPayload: Bet365MarketsPayload;
   oddsApiConfigured?: boolean;
+  combinadas?: ValueCombinada[];
 }
 
 const COLUMN_TOOLTIPS = {
@@ -251,10 +256,11 @@ export function Bet365MarketsPanel({
   analysedMatch,
   marketsPayload,
   oddsApiConfigured = false,
+  combinadas = [],
 }: Bet365MarketsPanelProps) {
   const { match } = analysedMatch;
   const [activeTab, setActiveTab] = useState<string>(
-    marketsPayload.tabs[0]?.id ?? "principales",
+    marketsPayload.tabs[0]?.id ?? COMBINADA_TAB_ID,
   );
 
   useEffect(() => {
@@ -269,6 +275,8 @@ export function Bet365MarketsPanel({
       marketsPayload.tabs[0],
     [activeTab, marketsPayload],
   );
+
+  const isCombinadaTab = activeTab === COMBINADA_TAB_ID;
 
   const sourceLabel =
     marketsPayload.source === "the-odds-api"
@@ -319,54 +327,98 @@ export function Bet365MarketsPanel({
         </p>
       )}
 
-      {marketsPayload.tabs.length === 0 && (
-        <div className="px-5 py-10 text-center text-sm text-slate-400">
-          {marketsPayload.message ?? "No hay mercados disponibles."}
-        </div>
-      )}
+      <div className="relative border-b border-white/[0.06]">
+        <div className="schedule-scroll flex gap-2 overflow-x-auto px-4 py-3 scroll-smooth md:flex-wrap md:overflow-x-visible">
+          <button
+            type="button"
+            onClick={() => setActiveTab(COMBINADA_TAB_ID)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+              isCombinadaTab
+                ? "chip-active"
+                : "border border-emerald-500/35 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+            }`}
+          >
+            Combinada
+            <span
+              className={`ml-1.5 text-xs ${isCombinadaTab ? "text-emerald-950/70" : "text-emerald-300/80"}`}
+            >
+              ({combinadas.length})
+            </span>
+          </button>
 
-      {marketsPayload.tabs.length > 0 && (
-        <>
-          <div className="schedule-scroll flex gap-2 overflow-x-auto border-b border-white/[0.06] px-4 py-3">
-            {marketsPayload.tabs.map((tab) => {
-              const isActive = tab.id === activeTabData?.id;
+          {marketsPayload.tabs.length > 0 && (
+            <span
+              aria-hidden
+              className="mx-0.5 hidden h-6 w-px shrink-0 self-center bg-white/10 sm:block"
+            />
+          )}
 
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
-                    isActive ? "chip-active" : "chip-inactive"
-                  }`}
+          {marketsPayload.tabs.map((tab) => {
+            const isActive = !isCombinadaTab && tab.id === activeTabData?.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
+                  isActive ? "chip-active" : "chip-inactive"
+                }`}
+              >
+                {tab.label}
+                <span
+                  className={`ml-1.5 text-xs ${isActive ? "text-emerald-950/70" : "text-slate-500"}`}
                 >
-                  {tab.label}
-                  <span
-                    className={`ml-1.5 text-xs ${isActive ? "text-emerald-950/70" : "text-slate-500"}`}
-                  >
-                    ({tab.groups.length})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  ({tab.groups.length})
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-          <div className="max-h-none overflow-y-auto overscroll-contain p-3 sm:max-h-[720px] sm:p-4">
-            {activeTabData ? (
-              <TabPanel tab={activeTabData} panelKey={match.id} />
-            ) : (
-              <p className="py-8 text-center text-sm text-slate-500">
-                No hay mercados en esta categoría.
-              </p>
-            )}
-          </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#0a0e14] via-[#0a0e14]/80 to-transparent md:hidden"
+        />
+      </div>
 
-          <div className="border-t border-white/[0.06] px-5 py-3 text-xs text-slate-500">
-            {marketsPayload.fetchedMarkets} mercados ·{" "}
-            {marketsPayload.totalSelections} selecciones
-            {marketsPayload.sportKey ? ` · ${marketsPayload.sportKey}` : ""}
-          </div>
-        </>
+      <div className="max-h-none overflow-y-auto overscroll-contain p-3 sm:max-h-[720px] sm:p-4">
+        {isCombinadaTab ? (
+          <ValueCombinadaPanel
+            embedded
+            combinadas={combinadas}
+            title="Combinadas de este partido"
+            subtitle={`Apuestas múltiples con valor en ${match.homeTeam.name} vs ${match.awayTeam.name}.`}
+            emptyMessage="No hay combinadas viables en este partido (mín. 2 piernas con valor y ≥22% de prob. cada una)."
+          />
+        ) : marketsPayload.tabs.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-400">
+            {marketsPayload.message ?? "No hay mercados disponibles."}
+          </p>
+        ) : activeTabData ? (
+          <TabPanel tab={activeTabData} panelKey={match.id} />
+        ) : (
+          <p className="py-8 text-center text-sm text-slate-500">
+            No hay mercados en esta categoría.
+          </p>
+        )}
+      </div>
+
+      {(marketsPayload.tabs.length > 0 || isCombinadaTab) && (
+        <div className="border-t border-white/[0.06] px-5 py-3 text-xs text-slate-500">
+          {isCombinadaTab ? (
+            <>
+              {combinadas.length} combinada{combinadas.length === 1 ? "" : "s"} con
+              valor · piernas de todos los mercados del partido
+            </>
+          ) : (
+            <>
+              {marketsPayload.fetchedMarkets} mercados ·{" "}
+              {marketsPayload.totalSelections} selecciones
+              {marketsPayload.sportKey ? ` · ${marketsPayload.sportKey}` : ""}
+            </>
+          )}
+        </div>
       )}
     </section>
   );

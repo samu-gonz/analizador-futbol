@@ -1,6 +1,10 @@
 import { Suspense } from "react";
 import { Bet365MarketsPanel } from "@/components/Bet365MarketsPanel";
 import { Bet365MarketsSkeleton } from "@/components/Bet365MarketsSkeleton";
+import {
+  buildValueCombinadas,
+  flattenMarketsPayloadToSelections,
+} from "@/lib/combinada/buildValueCombinadas";
 import { isTheOddsApiConfigured } from "@/lib/oddsApi/config";
 import { getBet365MarketsForAnalysedMatch } from "@/services/bet365MarketsService";
 import type { AnalysedMatch } from "@/types/football";
@@ -123,12 +127,27 @@ function TeamBadge({
 
 async function MatchMarkets({ analysedMatch }: { analysedMatch: AnalysedMatch }) {
   const marketsPayload = await getBet365MarketsForAnalysedMatch(analysedMatch);
+  const { match } = analysedMatch;
+
+  const pool = flattenMarketsPayloadToSelections({
+    matchId: match.id,
+    matchLabel: `${match.homeTeam.name} vs ${match.awayTeam.name}`,
+    kickoffIso: match.date,
+    tabs: marketsPayload.tabs,
+  });
+
+  const combinadas = buildValueCombinadas([pool], {
+    minLegs: 2,
+    maxLegs: 3,
+    maxResults: 5,
+  });
 
   return (
     <Bet365MarketsPanel
       analysedMatch={analysedMatch}
       marketsPayload={marketsPayload}
       oddsApiConfigured={isTheOddsApiConfigured()}
+      combinadas={combinadas}
     />
   );
 }
@@ -138,6 +157,7 @@ export function MatchAnalysis({ analysedMatch }: MatchAnalysisProps) {
   const status = formatStatusLabel(match.status);
 
   return (
+    <div className="space-y-4">
     <section className="glass-panel-strong overflow-hidden">
       <header className="relative overflow-hidden border-b border-white/[0.06] px-4 py-5 sm:px-6 sm:py-8 md:px-8">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/[0.08] via-transparent to-cyan-500/[0.04]" />
@@ -217,5 +237,6 @@ export function MatchAnalysis({ analysedMatch }: MatchAnalysisProps) {
         </Suspense>
       </div>
     </section>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { AppNav } from "@/components/AppNav";
 
-type AppNavActive = "analysis" | "live" | "standings";
+type AppNavActive = "analysis" | "live" | "standings" | "combinada";
 
 interface AppShellProps {
   children: ReactNode;

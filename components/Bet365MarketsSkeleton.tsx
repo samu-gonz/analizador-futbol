@@ -22,6 +22,7 @@ export function Bet365MarketsSkeleton({
       </div>
 
       <div className="flex gap-2 border-b border-white/[0.06] px-4 py-3">
+        <div className="skeleton-shimmer h-9 w-28 shrink-0 rounded-full" />
         {[1, 2, 3, 4].map((item) => (
           <div
             key={item}
