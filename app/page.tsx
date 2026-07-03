@@ -1,6 +1,6 @@
+import { AnalysisLayout } from "@/components/AnalysisLayout";
 import { AppShell } from "@/components/AppShell";
 import { MatchAnalysis } from "@/components/MatchAnalysis";
-import { MatchSchedule } from "@/components/MatchSchedule";
 import { PageHeader } from "@/components/PageHeader";
 import { isSportsApiProConfigured } from "@/lib/sportsApiPro/config";
 import {
@@ -86,36 +86,31 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         description="Comparativa entre probabilidades Poisson y cuotas del mercado. Detecta apuestas con valor en tiempo real."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(300px,340px)_1fr] lg:items-start">
-        <div className="flex max-h-[min(70vh,640px)] min-h-0 flex-col lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)]">
-          <MatchSchedule
-            days={dayOptions}
-            selectedDate={selectedDate}
-            matches={dayMatches}
-            selectedMatchId={featuredMatch?.match.id ?? ""}
-          />
-        </div>
-
-        <div className="min-w-0">
-          {featuredMatch ? (
-            <MatchAnalysis analysedMatch={featuredMatch} />
-          ) : (
-            <section className="glass-panel flex min-h-[400px] items-center justify-center p-12">
-              <div className="text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                  <span className="text-2xl">⚽</span>
-                </div>
-                <p className="font-display text-lg font-semibold text-white">
-                  Selecciona un partido
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Elige un encuentro del calendario para ver el análisis completo.
-                </p>
+      <AnalysisLayout
+        days={dayOptions}
+        selectedDate={selectedDate}
+        matches={dayMatches}
+        selectedMatchId={featuredMatch?.match.id ?? ""}
+        featuredMatch={featuredMatch ?? null}
+      >
+        {featuredMatch ? (
+          <MatchAnalysis analysedMatch={featuredMatch} />
+        ) : (
+          <section className="glass-panel flex min-h-[400px] items-center justify-center p-8 sm:p-12">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                <span className="text-2xl">⚽</span>
               </div>
-            </section>
-          )}
-        </div>
-      </div>
+              <p className="font-display text-lg font-semibold text-white">
+                Selecciona un partido
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Pulsa &quot;Partidos&quot; abajo para elegir un encuentro.
+              </p>
+            </div>
+          </section>
+        )}
+      </AnalysisLayout>
     </AppShell>
   );
 }

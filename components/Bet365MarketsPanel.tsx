@@ -156,19 +156,6 @@ function MarketAccordion({
 
       {open && (
         <div className="border-t border-white/[0.06]">
-          <div className="flex flex-wrap gap-x-4 gap-y-2 border-b border-white/[0.04] bg-white/[0.02] px-4 py-2.5 lg:hidden">
-            <ColumnInfoHeader label="Cuota" tooltip={COLUMN_TOOLTIPS.cuota} />
-            <ColumnInfoHeader
-              label="Prob. impl."
-              tooltip={COLUMN_TOOLTIPS.implied}
-            />
-            <ColumnInfoHeader
-              label="Prob. modelo"
-              tooltip={COLUMN_TOOLTIPS.model}
-            />
-            <ColumnInfoHeader label="Ventaja" tooltip={COLUMN_TOOLTIPS.edge} />
-          </div>
-
           <div className="hidden grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr] gap-3 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 lg:grid">
             <span>Selección</span>
             <ColumnInfoHeader label="Cuota" tooltip={COLUMN_TOOLTIPS.cuota} />
@@ -194,42 +181,46 @@ function MarketAccordion({
               return (
                 <article
                   key={selection.id}
-                  className={`grid grid-cols-1 gap-2.5 px-4 py-3.5 transition-colors lg:grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr] lg:items-center lg:gap-3 ${rowHighlightClass(edge.tier)}`}
+                  className={`px-3 py-3 transition-colors sm:px-4 sm:py-3.5 lg:grid lg:grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_1fr] lg:items-center lg:gap-3 ${rowHighlightClass(edge.tier)}`}
                 >
-                  <p className="text-sm font-medium text-slate-100">
+                  <p className="mb-3 text-sm font-medium leading-snug text-slate-100 lg:mb-0">
                     {selection.selectionName}
                   </p>
 
-                  <div className="flex items-center justify-between lg:block">
-                    <span className="text-xs text-slate-500 lg:hidden">Cuota</span>
-                    <span className="font-display text-base font-bold tabular-nums text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.35)] lg:mt-1">
-                      {selection.decimalOdd.toFixed(2)}
-                    </span>
-                  </div>
+                  <div className="grid grid-cols-2 gap-2 lg:contents">
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 lg:border-0 lg:bg-transparent lg:p-0">
+                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500 lg:hidden">
+                        Cuota
+                      </p>
+                      <p className="font-display text-lg font-bold tabular-nums text-amber-400 lg:text-base">
+                        {selection.decimalOdd.toFixed(2)}
+                      </p>
+                    </div>
 
-                  <div className="flex items-center justify-between lg:block">
-                    <span className="text-xs text-slate-500 lg:hidden">
-                      Prob. impl.
-                    </span>
-                    <span className="text-sm tabular-nums text-slate-400 lg:mt-1">
-                      {selection.impliedProbability}%
-                    </span>
-                  </div>
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 lg:border-0 lg:bg-transparent lg:p-0">
+                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500 lg:hidden">
+                        Prob. impl.
+                      </p>
+                      <p className="text-sm tabular-nums text-slate-400">
+                        {selection.impliedProbability}%
+                      </p>
+                    </div>
 
-                  <div className="flex items-center justify-between lg:block">
-                    <span className="text-xs text-slate-500 lg:hidden">
-                      Prob. modelo
-                    </span>
-                    <span className="text-sm font-semibold tabular-nums text-cyan-300 lg:mt-1">
-                      {selection.estimatedProbability}%
-                    </span>
-                  </div>
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 lg:border-0 lg:bg-transparent lg:p-0">
+                      <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500 lg:hidden">
+                        Prob. modelo
+                      </p>
+                      <p className="text-sm font-semibold tabular-nums text-cyan-300">
+                        {selection.estimatedProbability}%
+                      </p>
+                    </div>
 
-                  <div className="flex items-center justify-between gap-2 lg:justify-end">
-                    <span className="text-xs text-slate-500 lg:hidden">
-                      Ventaja
-                    </span>
-                    <ValueBadge valuePercent={selection.valuePercent} />
+                    <div className="col-span-2 flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 lg:col-span-1 lg:justify-end lg:border-0 lg:bg-transparent lg:p-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 lg:hidden">
+                        Ventaja
+                      </p>
+                      <ValueBadge valuePercent={selection.valuePercent} />
+                    </div>
                   </div>
                 </article>
               );
@@ -286,20 +277,20 @@ export function Bet365MarketsPanel({
 
   return (
     <section className="glass-panel overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
-        <div>
-          <h2 className="font-display text-lg font-bold text-white">
+      <div className="flex flex-col gap-3 border-b border-white/[0.06] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+        <div className="min-w-0">
+          <h2 className="font-display text-base font-bold text-white sm:text-lg">
             Mercados de apuestas
           </h2>
-          <p className="text-sm text-slate-500">{sourceLabel}</p>
+          <p className="truncate text-xs text-slate-500 sm:text-sm">{sourceLabel}</p>
         </div>
 
         {marketsPayload.tabs.length > 0 && (
-          <div className="stat-card text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              Apuestas con valor
+          <div className="stat-card shrink-0 self-start sm:self-auto sm:text-right">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-[11px]">
+              Con valor
             </p>
-            <p className="font-display text-2xl font-black text-emerald-400">
+            <p className="font-display text-xl font-black text-emerald-400 sm:text-2xl">
               {marketsPayload.valueBetsCount}
             </p>
           </div>
@@ -360,7 +351,7 @@ export function Bet365MarketsPanel({
             })}
           </div>
 
-          <div className="max-h-[720px] overflow-y-auto overscroll-contain p-4">
+          <div className="max-h-none overflow-y-auto overscroll-contain p-3 sm:max-h-[720px] sm:p-4">
             {activeTabData ? (
               <TabPanel tab={activeTabData} panelKey={match.id} />
             ) : (

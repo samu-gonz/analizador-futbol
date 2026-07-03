@@ -19,6 +19,8 @@ interface MatchScheduleProps {
   selectedDate: string;
   matches: AnalysedMatch[];
   selectedMatchId: string;
+  onMatchSelected?: () => void;
+  embedded?: boolean;
 }
 
 function formatKickoffTime(dateIso: string): string {
@@ -78,6 +80,8 @@ export function MatchSchedule({
   selectedDate,
   matches,
   selectedMatchId,
+  onMatchSelected,
+  embedded = false,
 }: MatchScheduleProps) {
   const router = useRouter();
   const selectedDay = days.find((day) => day.date === selectedDate);
@@ -104,19 +108,27 @@ export function MatchSchedule({
   }, [selectedDate, days]);
 
   return (
-    <aside className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-white/[0.06] px-5 py-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-400/90">
-          Calendario
-        </p>
-        <h2 className="mt-1 font-display text-lg font-bold text-white">
-          {formatMatchDaySubtitle(selectedDate)}
-        </h2>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {selectedDay?.matchCount ?? 0} partido
-          {(selectedDay?.matchCount ?? 0) === 1 ? "" : "s"}
-        </p>
-      </div>
+    <aside
+      className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+        embedded
+          ? "h-full bg-transparent"
+          : "glass-panel"
+      }`}
+    >
+      {!embedded && (
+        <div className="shrink-0 border-b border-white/[0.06] px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-400/90">
+            Calendario
+          </p>
+          <h2 className="mt-1 font-display text-lg font-bold text-white">
+            {formatMatchDaySubtitle(selectedDate)}
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {selectedDay?.matchCount ?? 0} partido
+            {(selectedDay?.matchCount ?? 0) === 1 ? "" : "s"}
+          </p>
+        </div>
+      )}
 
       {days.length > 1 ? (
         <div className="shrink-0 border-b border-white/[0.06] px-4 py-3">
@@ -138,7 +150,10 @@ export function MatchSchedule({
                     }
                   }}
                   type="button"
-                  onClick={() => router.push(buildScheduleQuery(day.date))}
+                  onClick={() => {
+                    router.push(buildScheduleQuery(day.date));
+                    onMatchSelected?.();
+                  }}
                   className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
                     isSelected ? "chip-active" : "chip-inactive"
                   }`}
@@ -177,9 +192,10 @@ export function MatchSchedule({
               <button
                 key={item.match.id}
                 type="button"
-                onClick={() =>
-                  router.push(buildScheduleQuery(selectedDate, item.match.id))
-                }
+                onClick={() => {
+                  router.push(buildScheduleQuery(selectedDate, item.match.id));
+                  onMatchSelected?.();
+                }}
                 className={`match-card group w-full p-3 text-left ${
                   isSelected ? "match-card-selected" : ""
                 }`}
