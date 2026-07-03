@@ -104,10 +104,6 @@ export async function getBet365MarketsFromSportsApiPro(params: {
   awayTeamId: string;
   analysedMatch?: import("@/types/football").AnalysedMatch;
 }): Promise<Bet365MarketsPayload> {
-  if (params.analysedMatch) {
-    return buildBet365MarketsFromAnalysedMatch(params.analysedMatch);
-  }
-
   const gameId = Number.parseInt(params.gameId, 10);
   const oddsResponse = await fetchWorldCupOdds().catch(() => ({
     success: true,
@@ -117,43 +113,45 @@ export async function getBet365MarketsFromSportsApiPro(params: {
   const oddsEntry = oddsResponse.data?.games?.find((entry) => entry.gameId === gameId);
   const predictionMarkets = oddsEntry?.predictions?.predictions ?? [];
 
-  const poisson = calculatePoissonProbability(params.homeTeamId, params.awayTeamId);
-  const context = {
-    homeTeamName: params.homeTeam,
-    awayTeamName: params.awayTeam,
-    poisson,
-  };
+  if (predictionMarkets.length > 0) {
+    const poisson = calculatePoissonProbability(params.homeTeamId, params.awayTeamId);
+    const context = {
+      homeTeamName: params.homeTeam,
+      awayTeamName: params.awayTeam,
+      poisson,
+    };
 
-  const markets: OddsApiMarket[] = [
-    ...predictionMarketsToOddsApiMarkets(predictionMarkets),
-    buildCornersMarket(params.homeTeamId, params.awayTeamId),
-  ];
+    const markets: OddsApiMarket[] = [
+      ...predictionMarketsToOddsApiMarkets(predictionMarkets),
+      buildCornersMarket(params.homeTeamId, params.awayTeamId),
+    ];
 
-  if (markets.length === 0) {
-    return {
+    return buildMarketsPayload({
+      markets,
+      context,
       eventId: params.gameId,
       sportKey: "sports-api-pro",
       bookmaker: "sports-api-pro",
       bookmakerTitle: "SportsAPI Pro",
-      tabs: [],
-      totalSelections: 0,
-      valueBetsCount: 0,
-      fetchedMarkets: 0,
       source: "sports-api-pro",
-      message:
-        "No hay mercados disponibles para este partido en SportsAPI Pro.",
-    };
+      message: "Cuotas de comunidad vía SportsAPI Pro.",
+    });
   }
 
-  return buildMarketsPayload({
-    markets,
-    context,
+  if (params.analysedMatch) {
+    return buildBet365MarketsFromAnalysedMatch(params.analysedMatch);
+  }
+
+  return {
     eventId: params.gameId,
     sportKey: "sports-api-pro",
     bookmaker: "sports-api-pro",
     bookmakerTitle: "SportsAPI Pro",
+    tabs: [],
+    totalSelections: 0,
+    valueBetsCount: 0,
+    fetchedMarkets: 0,
     source: "sports-api-pro",
-    message:
-      "Cuotas de comunidad vía SportsAPI Pro. Para todos los mercados Bet365, añade THE_ODDS_API_KEY.",
-  });
+    message: "No hay mercados disponibles para este partido en SportsAPI Pro.",
+  };
 }

@@ -2,8 +2,8 @@ export const THE_ODDS_API_BASE_URL = "https://api.the-odds-api.com/v4";
 
 export const BET365_BOOKMAKER_KEY = "bet365";
 
-/** Regiones ampliadas: Bet365 suele no publicar en Mundial; otras casas sí. */
-export const ODDS_API_REGIONS = "uk,eu,us,au";
+/** Regiones EU/UK: suficiente para Bet365 y casas europeas. Menos regiones = menos créditos. */
+export const ODDS_API_REGIONS = "eu,uk";
 
 /**
  * Orden de prioridad para cuotas reales.

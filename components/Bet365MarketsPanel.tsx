@@ -288,9 +288,11 @@ export function Bet365MarketsPanel({
   const sourceLabel =
     marketsPayload.source === "the-odds-api"
       ? `Cuotas reales · ${marketsPayload.bookmakerTitle}`
-      : marketsPayload.source === "unavailable"
-        ? "Sin cuotas reales disponibles"
-        : `Cuotas estimadas · ${marketsPayload.bookmakerTitle}`;
+      : marketsPayload.source === "sports-api-pro"
+        ? `Cuotas base · ${marketsPayload.bookmakerTitle}`
+        : marketsPayload.source === "unavailable"
+          ? "Sin cuotas reales disponibles"
+          : `Cuotas estimadas · ${marketsPayload.bookmakerTitle}`;
 
   return (
     <section className="glass-panel overflow-hidden">

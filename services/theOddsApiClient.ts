@@ -22,16 +22,35 @@ export class TheOddsApiError extends Error {
   constructor(
     message: string,
     public readonly statusCode?: number,
+    public readonly errorCode?: string,
   ) {
     super(message);
     this.name = "TheOddsApiError";
   }
 }
 
+export function isOddsApiQuotaExhausted(error: unknown): boolean {
+  return (
+    error instanceof TheOddsApiError &&
+    error.errorCode === "OUT_OF_USAGE_CREDITS"
+  );
+}
+
 const EVENTS_CACHE_TTL_MS = 5 * 60 * 1000;
 const ODDS_CACHE_TTL_MS = 10 * 60 * 1000;
+const SPORT_ODDS_CACHE_TTL_MS = 30 * 60 * 1000;
 const eventsCache = new Map<string, { expiresAt: number; events: OddsApiEvent[] }>();
 const eventOddsCache = createMemoryCache<OddsApiEvent>(ODDS_CACHE_TTL_MS);
+const sportOddsCache = new Map<string, { expiresAt: number; events: OddsApiEvent[] }>();
+
+/** Mercados soportados por el endpoint bulk /sports/{sport}/odds */
+const BULK_SPORT_MARKET_KEYS = [
+  "h2h",
+  "totals",
+  "spreads",
+  "draw_no_bet",
+  "double_chance",
+] as const;
 
 async function oddsApiGet<T>(
   path: string,
@@ -60,10 +79,25 @@ async function oddsApiGet<T>(
   });
 
   if (!response.ok) {
-    throw new TheOddsApiError(
-      `The Odds API respondió con status ${response.status}`,
-      response.status,
-    );
+    let message = `The Odds API respondió con status ${response.status}`;
+    let errorCode: string | undefined;
+
+    try {
+      const body = (await response.json()) as {
+        message?: string;
+        error_code?: string;
+      };
+
+      if (body.message) {
+        message = body.message;
+      }
+
+      errorCode = body.error_code;
+    } catch {
+      // Respuesta no JSON.
+    }
+
+    throw new TheOddsApiError(message, response.status, errorCode);
   }
 
   return response.json() as Promise<T>;
@@ -131,6 +165,42 @@ export function pickPreferredBookmaker(
     title: best.title,
     marketKeys: best.markets.map((market) => market.key),
   };
+}
+
+export async function fetchSportOdds(
+  sportKey: string,
+  bookmakerKey: string,
+  markets: string[] = [...BULK_SPORT_MARKET_KEYS],
+): Promise<OddsApiEvent[]> {
+  const cacheKey = `${sportKey}:${bookmakerKey}:${markets.slice().sort().join(",")}`;
+  const cached = sportOddsCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.events;
+  }
+
+  const events = await oddsApiGet<OddsApiEvent[]>(`/sports/${sportKey}/odds`, {
+    regions: ODDS_API_REGIONS,
+    markets: markets.join(","),
+    bookmakers: bookmakerKey,
+  });
+
+  sportOddsCache.set(cacheKey, {
+    events,
+    expiresAt: Date.now() + SPORT_ODDS_CACHE_TTL_MS,
+  });
+
+  return events;
+}
+
+export function extractEventBookmakerMarkets(
+  events: OddsApiEvent[],
+  eventId: string,
+  bookmakerKey: string,
+): OddsApiMarket[] {
+  const event = events.find((entry) => entry.id === eventId);
+
+  return extractBookmakerMarkets(event, bookmakerKey);
 }
 
 export async function fetchEventOdds(

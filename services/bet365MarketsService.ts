@@ -4,6 +4,7 @@ import { buildMarketsPayload } from "@/lib/bet365/marketsPayload";
 import { createMemoryCache } from "@/lib/cache/memoryCache";
 import { isSportsApiProConfigured } from "@/lib/sportsApiPro/config";
 import { getBet365MarketsFromSportsApiPro } from "@/services/sportsApiProBet365Fallback";
+import { getMarketsFromWorldCupSnapshot } from "@/lib/oddsApi/worldCupOddsSnapshot";
 import { getBookmakerDisplayName, isTheOddsApiConfigured, PREFERRED_BOOKMAKER_KEYS, WORLD_CUP_SPORT_KEY } from "@/lib/oddsApi/config";
 import {
   chunkMarketKeys,
@@ -24,15 +25,19 @@ const CORE_BET365_MARKET_KEYS = [
   "player_goal_scorer_anytime",
 ] as const;
 
-const MARKETS_CACHE_TTL_MS = 10 * 60 * 1000;
+const MARKETS_CACHE_TTL_MS = 30 * 60 * 1000;
 const marketsCache = createMemoryCache<Bet365MarketsPayload>(MARKETS_CACHE_TTL_MS);
 import { calculatePoissonProbability } from "@/services/predictionEngine";
 import {
   extractBookmakerMarkets,
+  extractEventBookmakerMarkets,
   fetchEventAvailableMarkets,
   fetchEventOdds,
+  fetchSportOdds,
   findEventForMatch,
+  isOddsApiQuotaExhausted,
   pickPreferredBookmaker,
+  TheOddsApiError,
 } from "@/services/theOddsApiClient";
 import type { Bet365MarketsPayload } from "@/types/bet365Markets";
 import type { AnalysedMatch } from "@/types/football";
@@ -90,17 +95,50 @@ async function fetchMarketsFromBookmaker(
   bookmakerKey: string,
 ): Promise<OddsApiMarket[]> {
   const marketBatches = chunkMarketKeys(marketKeys, 12);
+  let quotaError: TheOddsApiError | null = null;
+
   const marketResponses = await Promise.all(
     marketBatches.map((batch) =>
-      fetchEventOdds(sportKey, eventId, batch, bookmakerKey).catch(() => null),
+      fetchEventOdds(sportKey, eventId, batch, bookmakerKey).catch((error) => {
+        if (isOddsApiQuotaExhausted(error)) {
+          quotaError =
+            error instanceof TheOddsApiError
+              ? error
+              : new TheOddsApiError("Cuota de The Odds API agotada", 401, "OUT_OF_USAGE_CREDITS");
+        }
+
+        return null;
+      }),
     ),
   );
+
+  if (quotaError) {
+    throw quotaError;
+  }
 
   return mergeMarkets(
     marketResponses.map((response) =>
       extractBookmakerMarkets(response, bookmakerKey),
     ),
   );
+}
+
+async function fetchBulkMarketsForEvent(
+  sportKey: string,
+  eventId: string,
+  bookmakerKey: string,
+): Promise<OddsApiMarket[]> {
+  try {
+    const sportEvents = await fetchSportOdds(sportKey, bookmakerKey);
+
+    return extractEventBookmakerMarkets(sportEvents, eventId, bookmakerKey);
+  } catch (error) {
+    if (isOddsApiQuotaExhausted(error)) {
+      throw error;
+    }
+
+    return [];
+  }
 }
 
 async function fetchBestRealBookmakerMarkets(params: {
@@ -133,36 +171,126 @@ async function fetchBestRealBookmakerMarkets(params: {
   }
 
   if (orderedKeys.length === 0) {
-    orderedKeys.push(...PREFERRED_BOOKMAKER_KEYS);
+    orderedKeys.push(...PREFERRED_BOOKMAKER_KEYS.slice(0, 2));
   }
+
+  let quotaError: TheOddsApiError | null = null;
 
   for (const bookmakerKey of orderedKeys) {
     const bookmakerMeta = params.availableBookmakers.find(
       (bookmaker) => bookmaker.key === bookmakerKey,
     );
 
-    for (const marketKeys of params.marketKeyCandidates) {
-      const markets = await fetchMarketsFromBookmaker(
+    try {
+      const bulkMarkets = await fetchBulkMarketsForEvent(
         params.sportKey,
         params.eventId,
-        marketKeys,
         bookmakerKey,
       );
 
-      if (markets.length > 0) {
+      if (bulkMarkets.length > 0) {
         return {
           bookmakerKey,
           bookmakerTitle: getBookmakerDisplayName(
             bookmakerKey,
             bookmakerMeta?.title,
           ),
-          markets,
+          markets: bulkMarkets,
         };
       }
+    } catch (error) {
+      if (isOddsApiQuotaExhausted(error)) {
+        quotaError =
+          error instanceof TheOddsApiError
+            ? error
+            : new TheOddsApiError("Cuota de The Odds API agotada", 401, "OUT_OF_USAGE_CREDITS");
+        break;
+      }
+    }
+
+    for (const marketKeys of params.marketKeyCandidates) {
+      try {
+        const markets = await fetchMarketsFromBookmaker(
+          params.sportKey,
+          params.eventId,
+          marketKeys,
+          bookmakerKey,
+        );
+
+        if (markets.length > 0) {
+          return {
+            bookmakerKey,
+            bookmakerTitle: getBookmakerDisplayName(
+              bookmakerKey,
+              bookmakerMeta?.title,
+            ),
+            markets,
+          };
+        }
+      } catch (error) {
+        if (isOddsApiQuotaExhausted(error)) {
+          quotaError =
+            error instanceof TheOddsApiError
+              ? error
+              : new TheOddsApiError("Cuota de The Odds API agotada", 401, "OUT_OF_USAGE_CREDITS");
+          break;
+        }
+      }
+    }
+
+    if (quotaError) {
+      break;
     }
   }
 
+  if (quotaError) {
+    throw quotaError;
+  }
+
   return null;
+}
+
+async function buildOddsApiFallbackPayload(
+  params: {
+    homeTeam: string;
+    awayTeam: string;
+    homeTeamId: string;
+    awayTeamId: string;
+    gameId?: string;
+    analysedMatch?: AnalysedMatch;
+  },
+  reason: string,
+  partial?: Partial<Bet365MarketsPayload>,
+): Promise<Bet365MarketsPayload> {
+  if (params.analysedMatch) {
+    const fallback = buildBet365MarketsFromAnalysedMatch(params.analysedMatch);
+
+    return {
+      ...fallback,
+      ...partial,
+      message: `${reason} Mostrando mercados con cuotas base del calendario hasta recuperar acceso a casas de apuestas.`,
+    };
+  }
+
+  if (isSportsApiProConfigured() && params.gameId) {
+    const sapPayload = await getBet365MarketsFromSportsApiPro({
+      gameId: params.gameId,
+      homeTeam: params.homeTeam,
+      awayTeam: params.awayTeam,
+      homeTeamId: params.homeTeamId,
+      awayTeamId: params.awayTeamId,
+    });
+
+    if (sapPayload.tabs.length > 0) {
+      return {
+        ...sapPayload,
+        ...partial,
+        message: `${reason} Mostrando mercados disponibles en SportsAPI Pro.`,
+      };
+    }
+  }
+
+  return emptyPayload(reason, partial);
 }
 
 export async function getBet365MarketsForMatch(params: {
@@ -182,7 +310,10 @@ export async function getBet365MarketsForMatch(params: {
   }
 
   const payload = await fetchBet365MarketsForMatch(params);
-  marketsCache.set(cacheKey, payload);
+
+  if (payload.source !== "unavailable") {
+    marketsCache.set(cacheKey, payload);
+  }
 
   return payload;
 }
@@ -241,10 +372,67 @@ async function fetchBet365MarketsForMatch(params: {
 
   const { event, sportKey } = located;
 
+  if (isWorldCup) {
+    let quotaExhausted = false;
+    let snapshotMarkets: Awaited<ReturnType<typeof getMarketsFromWorldCupSnapshot>> =
+      null;
+
+    try {
+      snapshotMarkets = await getMarketsFromWorldCupSnapshot(event.id);
+    } catch (error) {
+      if (isOddsApiQuotaExhausted(error)) {
+        quotaExhausted = true;
+      }
+    }
+
+    if (snapshotMarkets) {
+      const poisson = calculatePoissonProbability(
+        params.homeTeamId,
+        params.awayTeamId,
+      );
+
+      return buildMarketsPayload({
+        markets: snapshotMarkets.markets,
+        context: {
+          homeTeamName: params.homeTeam,
+          awayTeamName: params.awayTeam,
+          poisson,
+        },
+        eventId: event.id,
+        sportKey: snapshotMarkets.sportKey,
+        bookmaker: snapshotMarkets.bookmakerKey,
+        bookmakerTitle: snapshotMarkets.bookmakerTitle,
+        source: "the-odds-api",
+        message: `Cuotas reales de ${snapshotMarkets.bookmakerTitle} (caché compartida del Mundial, ~6 créditos/30 min).`,
+      });
+    }
+
+    if (quotaExhausted) {
+      return buildOddsApiFallbackPayload(
+        params,
+        "Cuota mensual de The Odds API agotada. Las cuotas existen en casas de apuestas pero la API no puede leerlas hasta renovar créditos.",
+        {
+          eventId: event.id,
+          sportKey,
+        },
+      );
+    }
+
+    return buildOddsApiFallbackPayload(
+      params,
+      "Este partido no tiene cuotas publicadas en el snapshot actual del Mundial.",
+      {
+        eventId: event.id,
+        sportKey,
+      },
+    );
+  }
+
   let discoveredMarketKeys: string[] = [];
   let availableBookmakers: Awaited<
     ReturnType<typeof fetchEventAvailableMarkets>
   >["bookmakers"] = [];
+  let quotaExhausted = false;
 
   try {
     const available = await fetchEventAvailableMarkets(sportKey, event.id);
@@ -254,26 +442,48 @@ async function fetchBet365MarketsForMatch(params: {
     if (selectedBookmaker?.marketKeys.length) {
       discoveredMarketKeys = selectedBookmaker.marketKeys;
     }
-  } catch {
-    // Si falla el catálogo, probamos con mercados estándar.
+  } catch (error) {
+    if (isOddsApiQuotaExhausted(error)) {
+      quotaExhausted = true;
+    }
   }
 
   const marketKeyCandidates = [
     discoveredMarketKeys.length > 0 ? discoveredMarketKeys : [...CORE_BET365_MARKET_KEYS],
-    [...CORE_BET365_MARKET_KEYS],
-    ["h2h", "totals", "btts", "double_chance"],
+    ["h2h", "totals", "spreads"],
   ];
 
-  const resolved = await fetchBestRealBookmakerMarkets({
-    sportKey,
-    eventId: event.id,
-    availableBookmakers,
-    marketKeyCandidates,
-  });
+  let resolved: Awaited<ReturnType<typeof fetchBestRealBookmakerMarkets>> | null =
+    null;
+
+  try {
+    resolved = await fetchBestRealBookmakerMarkets({
+      sportKey,
+      eventId: event.id,
+      availableBookmakers,
+      marketKeyCandidates,
+    });
+  } catch (error) {
+    if (isOddsApiQuotaExhausted(error)) {
+      quotaExhausted = true;
+    }
+  }
 
   if (!resolved) {
-    return emptyPayload(
-      "No hay cuotas reales publicadas para este partido en ninguna casa disponible ahora mismo.",
+    if (quotaExhausted) {
+      return buildOddsApiFallbackPayload(
+        params,
+        "Cuota mensual de The Odds API agotada. Las cuotas existen en Bet365 pero la API no puede leerlas hasta renovar créditos.",
+        {
+          eventId: event.id,
+          sportKey,
+        },
+      );
+    }
+
+    return buildOddsApiFallbackPayload(
+      params,
+      "No se pudieron cargar cuotas reales de casas de apuestas para este partido ahora mismo.",
       {
         eventId: event.id,
         sportKey,
